@@ -1028,6 +1028,10 @@ class Trainer:
             dataloader_params["worker_init_fn"] = seed_worker
             dataloader_params["prefetch_factor"] = self.args.dataloader_prefetch_factor
 
+        logger.warning("[DEBUG][transformers.trainer.py::get_train_dataloader] dataloader params are ")
+        logger.warning(dataloader_params)
+        logger.warning("[DEBUG][transformers.trainer.py::get_train_dataloader] done")
+
         return self.accelerator.prepare(DataLoader(train_dataset, **dataloader_params))
 
     def _get_eval_sampler(self, eval_dataset: Dataset) -> Optional[torch.utils.data.Sampler]:
@@ -2502,10 +2506,17 @@ class Trainer:
             total_updates = steps_in_epoch // args.gradient_accumulation_steps + 1
             if args.gradient_accumulation_steps == 1:
                 total_updates -= 1
+            logger.warning("[DEBUG] Inside transformers.trainer.py::train")
             for _ in range(total_updates):
                 update_step += 1
                 num_batches = args.gradient_accumulation_steps if update_step != (total_updates - 1) else remainder
                 batch_samples, num_items_in_batch = self.get_batch_samples(epoch_iterator, num_batches, args.device)
+
+                logger.warning(f"[DEBUG][transformers.trainer.py::train] num_items in the batch are {num_items_in_batch}")
+                logger.warning(f"[DEBUG][transformers.trainer.py::train] Batch samples are")
+                logger.warning(batch_samples)
+                logger.warning("[DEBUG][transformers.trainer.py::train] Done")
+
                 for i, inputs in enumerate(batch_samples):
                     step += 1
                     do_sync_step = (step + 1) % args.gradient_accumulation_steps == 0 or (step + 1) == steps_in_epoch
@@ -3771,6 +3782,11 @@ class Trainer:
 
         Subclass and override for custom behavior.
         """
+
+        logger.warning("[DEBUG][transformers.trainer.py::compute_loss] compute loss inputs are ")
+        logger.warning(str(inputs))
+        logger.warning("[DEBUG][transformers.trainer.py::compute_loss] done")
+
         if (self.label_smoother is not None or self.compute_loss_func is not None) and "labels" in inputs:
             labels = inputs.pop("labels")
         else:
