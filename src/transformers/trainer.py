@@ -1029,9 +1029,9 @@ class Trainer:
             dataloader_params["worker_init_fn"] = seed_worker
             dataloader_params["prefetch_factor"] = self.args.dataloader_prefetch_factor
 
-        logger.warning("[DEBUG][transformers.trainer.py::get_train_dataloader] dataloader params are ")
-        logger.warning(dataloader_params)
-        logger.warning("[DEBUG][transformers.trainer.py::get_train_dataloader] done")
+        #logger.warning("[DEBUG][transformers.trainer.py::get_train_dataloader] dataloader params are ")
+        #logger.warning(dataloader_params)
+        #logger.warning("[DEBUG][transformers.trainer.py::get_train_dataloader] done")
 
         return self.accelerator.prepare(DataLoader(train_dataset, **dataloader_params))
 
@@ -3831,9 +3831,9 @@ class Trainer:
         Subclass and override for custom behavior.
         """
 
-        logger.warning("[DEBUG][transformers.trainer.py::compute_loss] compute loss inputs are ")
-        logger.warning(str(inputs))
-        logger.warning("[DEBUG][transformers.trainer.py::compute_loss] done")
+#        logger.warning("[DEBUG][transformers.trainer.py::compute_loss] compute loss inputs are ")
+#        logger.warning(str(inputs))
+#        logger.warning("[DEBUG][transformers.trainer.py::compute_loss] done")
 
         if (self.label_smoother is not None or self.compute_loss_func is not None) and "labels" in inputs:
             labels = inputs.pop("labels")
