@@ -2424,7 +2424,7 @@ class Trainer:
 
         model_dtypes = {}
         for module in model.modules():
-            name = (module.module.__class__.__name__, ", ".join(module._flat_param._fqns))
+            name = (module.__class__.__name__, ", ".join(module._flat_param._fqns))
             d = get_parameter_dtype(module)
             model_dtypes[name] = d
 
