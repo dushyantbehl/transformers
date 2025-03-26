@@ -2424,7 +2424,7 @@ class Trainer:
 
         model_dtypes = {}
         for module in model.modules():
-            name = (module.__class__.__name__, ", ".join(module._flat_param._fqns))
+            name = (module.__class__.__name__)
             d = get_parameter_dtype(module)
             model_dtypes[name] = d
 
@@ -2437,7 +2437,7 @@ class Trainer:
         except Exception as e:
             logger.info(f"Exception while getting optimize dtype {e}")
         
-        logger.info(f"Model dtypes are {model_dtypes}")
+        logger.info(f"Model dtypes are {str(model_dtypes)}")
         if len(optim_dtypes) > 0:
             logger.info(f"Optimizer dtypes are {optim_dtypes}")
 
