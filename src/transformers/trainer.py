@@ -65,7 +65,7 @@ from .image_processing_utils import BaseImageProcessor
 from .integrations.deepspeed import deepspeed_init, deepspeed_load_checkpoint, is_deepspeed_available
 from .integrations.tpu import tpu_spmd_dataloader
 from .modelcard import TrainingSummary
-from .modeling_utils import PreTrainedModel, load_sharded_checkpoint, unwrap_model
+from .modeling_utils import PreTrainedModel, load_sharded_checkpoint, unwrap_model, get_parameter_dtype
 from .models.auto.modeling_auto import (
     MODEL_FOR_CAUSAL_LM_MAPPING_NAMES,
     MODEL_MAPPING_NAMES,
@@ -2422,6 +2422,24 @@ class Trainer:
         logger.info(f"  Total optimization steps = {max_steps:,}")
         logger.info(f"  Number of trainable parameters = {get_model_param_count(model, trainable_only=True):,}")
 
+        model_dtypes = []
+        for module in model.modules():
+            d = get_parameter_dtype(module)
+            model_dtypes.append(d)
+
+        optim_dtypes = []
+        try:
+            
+            for module in self.optimizer.modules:
+                d = get_parameter_dtype(module)
+                optim_dtypes.append(d)
+        except Exception as e:
+            logger.info(f"Exception while getting optimize dtype {e}")
+        
+        logger.info(f"Model dtypes are {model_dtypes}")
+        if len(optim_dtypes) > 0:
+            logger.info(f"Optimizer dtypes are {optim_dtypes}")
+
         self.state.epoch = 0
         start_time = time.time()
         epochs_trained = 0
@@ -2497,13 +2515,13 @@ class Trainer:
                 steps_trained_in_current_epoch = 0
                 rng_to_sync = True
 
-            collected_samples = {}
+            #collected_samples = {}
 
-            def find_or_create(d, key, value):
-                if key in d:
-                    d[key].extend(value)
-                else:
-                    d[key] = value
+            #def find_or_create(d, key, value):
+            #    if key in d:
+            #        d[key].extend(value)
+            #    else:
+            #        d[key] = value
 
             step = -1
             epoch_iterator = iter(epoch_dataloader)
@@ -2516,36 +2534,36 @@ class Trainer:
             if args.gradient_accumulation_steps == 1:
                 total_updates -= 1
 
-            if self.is_world_process_zero():
-                logger.warning("[DEBUG] Inside transformers.trainer.py::train")
+            #if self.is_world_process_zero():
+            #    logger.warning("[DEBUG] Inside transformers.trainer.py::train")
 
-                for _ in range(total_updates):
-                    update_step += 1
-                    num_batches = args.gradient_accumulation_steps if update_step != (total_updates - 1) else remainder
-                    batch_samples, num_items_in_batch = self.get_batch_samples(epoch_iterator, num_batches, args.device)
+            #    for _ in range(total_updates):
+            #        update_step += 1
+            #        num_batches = args.gradient_accumulation_steps if update_step != (total_updates - 1) else remainder
+            #        batch_samples, num_items_in_batch = self.get_batch_samples(epoch_iterator, num_batches, args.device)
 
-                    for i in range(len(batch_samples)):
-                        s = batch_samples[i]
-                        for key in s.keys():
-                            find_or_create(collected_samples, key, s[key].tolist() if isinstance(s[key], torch.Tensor) else s[key])
+            #        for i in range(len(batch_samples)):
+            #            s = batch_samples[i]
+            #            for key in s.keys():
+            #                find_or_create(collected_samples, key, s[key].tolist() if isinstance(s[key], torch.Tensor) else s[key])
 
-                import datasets
-                grabbed_dataset = datasets.Dataset.from_dict(collected_samples)
-                grabbed_dataset.to_json(args.output_dir+"grabbed_dataset.json")
-                os._exit(1)
-            else:
-                os._exit(1)
+            #    import datasets
+            #    grabbed_dataset = datasets.Dataset.from_dict(collected_samples)
+            #    grabbed_dataset.to_json(args.output_dir+"grabbed_dataset.json")
+            #    os._exit(1)
+            #else:
+            #    os._exit(1)
 
-            logger.warning("[DEBUG] Inside transformers.trainer.py::train")
+            #logger.warning("[DEBUG] Inside transformers.trainer.py::train")
             for _ in range(total_updates):
                 update_step += 1
                 num_batches = args.gradient_accumulation_steps if update_step != (total_updates - 1) else remainder
                 batch_samples, num_items_in_batch = self.get_batch_samples(epoch_iterator, num_batches, args.device)
 
-                logger.warning(f"[DEBUG][transformers.trainer.py::train] num_items in the batch are {num_items_in_batch}")
-                logger.warning(f"[DEBUG][transformers.trainer.py::train] Batch samples are")
-                logger.warning(batch_samples)
-                logger.warning("[DEBUG][transformers.trainer.py::train] Done")
+                #logger.warning(f"[DEBUG][transformers.trainer.py::train] num_items in the batch are {num_items_in_batch}")
+                #logger.warning(f"[DEBUG][transformers.trainer.py::train] Batch samples are")
+                #logger.warning(batch_samples)
+                #logger.warning("[DEBUG][transformers.trainer.py::train] Done")
 
                 for i, inputs in enumerate(batch_samples):
                     step += 1
