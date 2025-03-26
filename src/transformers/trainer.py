@@ -2422,10 +2422,11 @@ class Trainer:
         logger.info(f"  Total optimization steps = {max_steps:,}")
         logger.info(f"  Number of trainable parameters = {get_model_param_count(model, trainable_only=True):,}")
 
-        model_dtypes = []
+        model_dtypes = {}
         for module in model.modules():
+            name = (module.module.__class__.__name__, ", ".join(module._flat_param._fqns))
             d = get_parameter_dtype(module)
-            model_dtypes.append(d)
+            model_dtypes[name] = d
 
         optim_dtypes = []
         try:
