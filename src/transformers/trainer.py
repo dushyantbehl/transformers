@@ -35,7 +35,6 @@ from collections.abc import Mapping
 from pathlib import Path
 from typing import TYPE_CHECKING, Any, Callable, Optional, Union
 
-
 # Integrations must be imported before ML frameworks:
 # isort: off
 from .integrations import (
@@ -2498,6 +2497,14 @@ class Trainer:
                 steps_trained_in_current_epoch = 0
                 rng_to_sync = True
 
+            collected_samples = {}
+
+            def find_or_create(d, key, value):
+                if key in d:
+                    d[key].extend(value)
+                else:
+                    d[key] = value
+
             step = -1
             epoch_iterator = iter(epoch_dataloader)
             # We chunkify the epoch iterator into gradient accumulation steps `n` batches
@@ -2508,6 +2515,27 @@ class Trainer:
             total_updates = steps_in_epoch // args.gradient_accumulation_steps + 1
             if args.gradient_accumulation_steps == 1:
                 total_updates -= 1
+
+            if self.is_world_process_zero():
+                logger.warning("[DEBUG] Inside transformers.trainer.py::train")
+
+                for _ in range(total_updates):
+                    update_step += 1
+                    num_batches = args.gradient_accumulation_steps if update_step != (total_updates - 1) else remainder
+                    batch_samples, num_items_in_batch = self.get_batch_samples(epoch_iterator, num_batches, args.device)
+
+                    for i in range(len(batch_samples)):
+                        s = batch_samples[i]
+                        for key in s.keys():
+                            find_or_create(collected_samples, key, s[key].tolist() if isinstance(s[key], torch.Tensor) else s[key])
+
+                import datasets
+                grabbed_dataset = datasets.Dataset.from_dict(collected_samples)
+                grabbed_dataset.to_json(args.output_dir+"grabbed_dataset.json")
+                os._exit(1)
+            else:
+                os._exit(1)
+
             logger.warning("[DEBUG] Inside transformers.trainer.py::train")
             for _ in range(total_updates):
                 update_step += 1
