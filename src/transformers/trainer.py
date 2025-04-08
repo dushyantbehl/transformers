@@ -2622,12 +2622,16 @@ class Trainer:
                     ):
                         # if loss is nan or inf simply add the average of previous logged losses
                         tr_loss = tr_loss + tr_loss / (1 + self.state.global_step - self._globalstep_last_logged)
+                        logger.warning(f"Nan filter is applied loss is {tr_loss}")
                     else:
                         if tr_loss.device != tr_loss_step.device:
                             raise ValueError(
                                 f"Calculated loss must be on the original device: {tr_loss.device} but device in use is {tr_loss_step.device}"
                             )
+                        logger.warning(f"tr loss step is {tr_loss_step}")
                         tr_loss = tr_loss + tr_loss_step
+                        logger.warning(f"both combined are {tr_loss}")
+
 
                     self.current_flos += float(self.floating_point_ops(inputs))
 
@@ -2635,8 +2639,13 @@ class Trainer:
                         # Since we perform prefetching, we need to manually set sync_gradients to True
                         self.accelerator.gradient_state._set_sync_gradients(True)
 
+                        logger.warning("Performing grad sync")
+
                         # Gradient clipping
                         if args.max_grad_norm is not None and args.max_grad_norm > 0:
+
+                            logger.warning(f"Performing grad clipping max norm {args.max_grad_norm}")
+
                             if is_sagemaker_mp_enabled() and args.fp16:
                                 _grad_norm = self.optimizer.clip_master_grads(args.max_grad_norm)
                             elif self.use_apex:
@@ -2646,6 +2655,7 @@ class Trainer:
                                     args.max_grad_norm,
                                 )
                             else:
+                                logger.warning(f"Performing accelerator grad norm clipping{args.max_grad_norm}")
                                 _grad_norm = self.accelerator.clip_grad_norm_(
                                     model.parameters(),
                                     args.max_grad_norm,
@@ -2661,6 +2671,8 @@ class Trainer:
                                     grad_norm = grad_norm.item()
                             else:
                                 grad_norm = _grad_norm
+
+                        logger.warning(f"Final grad norm is {grad_norm}")
 
                         self.control = self.callback_handler.on_pre_optimizer_step(args, self.state, self.control)
 
@@ -3805,8 +3817,12 @@ class Trainer:
         if self.args.optim in [OptimizerNames.LOMO, OptimizerNames.ADALOMO]:
             kwargs["learning_rate"] = self._get_learning_rate()
 
+        logger.warning(f"Loss value before ngpu mean is {loss}")
+
         if self.args.n_gpu > 1:
             loss = loss.mean()  # mean() to average on multi-gpu parallel training
+            logger.warning(f"Performing mean on loss")
+        logger.warning(f"Loss value post ngpu mean is {loss}")
 
         if self.use_apex:
             with amp.scale_loss(loss, self.optimizer) as scaled_loss:
@@ -3814,14 +3830,18 @@ class Trainer:
         else:
             # Finally we need to normalize the loss for reporting
             if not self.model_accepts_loss_kwargs and self.compute_loss_func is None:
+                logger.warning(f"Scaling loss with gradient accumulation steps {self.args.gradient_accumulation_steps}")
                 loss = loss / self.args.gradient_accumulation_steps
+                logger.warning(f"Loss value post scaling is {loss}")
 
             # Turning off loss scaling w.r.t. gradient accumulation when DeepSpeed is enabled
             # https://github.com/huggingface/transformers/pull/35808
             if self.accelerator.distributed_type == DistributedType.DEEPSPEED:
                 kwargs["scale_wrt_gas"] = False
 
+            logger.warning(f"Performing backwards on {loss}")
             self.accelerator.backward(loss, **kwargs)
+            logger.warning(f"Loss post backwards is {loss}")
 
             return loss.detach()
 
@@ -3861,8 +3881,10 @@ class Trainer:
             if self.compute_loss_func is not None:
                 loss = self.compute_loss_func(outputs, labels, num_items_in_batch=num_items_in_batch)
             elif model_name in MODEL_FOR_CAUSAL_LM_MAPPING_NAMES.values():
+                logger.info("[DB_DEBUG] Shifting labels is set to TRUE")
                 loss = self.label_smoother(outputs, labels, shift_labels=True)
             else:
+                logger.info("[DB_DEBUG] Shifting labels is set to FALSE")
                 loss = self.label_smoother(outputs, labels)
         else:
             if isinstance(outputs, dict) and "loss" not in outputs:
