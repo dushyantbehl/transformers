@@ -925,7 +925,7 @@ class PretrainedConfig(PushToHubMixin):
         if "_name_or_path" in serializable_config_dict:
             del serializable_config_dict["_name_or_path"]
 
-        if hasattr(self, "quantization_config"):
+        if hasattr(self, "quantization_config") and self.quantization_config is not None:
             serializable_config_dict["quantization_config"] = (
                 self.quantization_config.to_dict()
                 if not isinstance(self.quantization_config, dict)
@@ -959,7 +959,7 @@ class PretrainedConfig(PushToHubMixin):
 
         self._remove_keys_not_serialized(output)
 
-        if hasattr(self, "quantization_config"):
+        if hasattr(self, "quantization_config") and self.quantization_config is not None:
             output["quantization_config"] = (
                 self.quantization_config.to_dict()
                 if not isinstance(self.quantization_config, dict)
